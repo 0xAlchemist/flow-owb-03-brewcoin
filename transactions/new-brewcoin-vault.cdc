@@ -16,8 +16,13 @@ transaction {
         log("Empty Vault created and stored")
 
 
-        let receiverRef = account.link<&BrewCoin.Vault{FungibleToken.Receiver, FungibleToken.Balance}>(
+        let receiverRef = account.link<&BrewCoin.Vault{FungibleToken.Receiver}>(
             /public/BrewCoinReceiver,
+            target: /storage/BrewCoinVault
+        )
+
+        let balanceRef = account.link<&BrewCoin.Vault{FungibleToken.Balance}>(
+            /public/BrewCoinBalance,
             target: /storage/BrewCoinVault
         )
         
@@ -27,8 +32,12 @@ transaction {
     post {
         // Check that the capabilities were created correctly
         getAccount(0x01).getCapability(/public/BrewCoinReceiver)!
-                        .check<&BrewCoin.Vault{FungibleToken.Receiver, FungibleToken.Balance}>():
+                        .check<&BrewCoin.Vault{FungibleToken.Receiver}>():
                         "Vault Receiver References were not created correctly"
+
+        getAccount(0x01).getCapability(/public/BrewCoinBalance)!
+                        .check<&BrewCoin.Vault{FungibleToken.Balance}>():
+                        "Vault Balance References were not created correctly"
 
     }
 }

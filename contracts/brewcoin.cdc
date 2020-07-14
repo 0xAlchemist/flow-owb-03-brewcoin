@@ -4,68 +4,47 @@
 // Flow Playground URL: https://play.onflow.org/b8fa9d7e-c6e0-4fca-9e5f-ed806ebd0106
 
 // Import the Flow FungibleToken interface
-import FungibleToken from 0xee82856bf20e2aa6
+import FungibleToken from 0x01
 
-pub contract BrewCoin {
+pub contract BrewCoin: FungibleToken {
 
-    // Total supply of all BrewCoins in circulation.
+    // Total supply of all BrewCoins in existence.
     pub var totalSupply: UFix64
 
-    // Provider
-    //
-    // Interface that forces the requirements for withdrawing
-    // tokens from the implementing type.
-    //
-    pub resource interface Provider {
+    // Event that is emitted when the contract is created
+    pub event TokensInitialized(initialSupply: UFix64)
 
-        // withdraw
-        //
-        // Function that subtracts tokens from the owner's Vault
-        // and returns a Vault resource (@Vault) with the removed tokens.
-        //
-        pub fun withdraw(amount: UFix64): @Vault {
-            post {
-                // 'result' refers to the return value of the function
-                result.balance == UFix64(amount):
-                    "Withdrawal amount must be the same as the balance of the withdrawn Vault"
-            }
-        }
-    }
+    // Event that is emitted when tokens are withdrawn from a Vault
+    pub event TokensWithdrawn(amount: UFix64, from: Address?)
 
-    // Receiver
-    //
-    // Interface that enforces the requirements for depositing
-    // tokens into the implementing type
-    //
-    pub resource interface Receiver {
-        // deposit
-        //
-        // Function that can be called to deposit tokens
-        // into the implementing resource type
-        //
-        pub fun deposit(from: @Vault) {
-            pre {
-                from.balance > UFix64(0):
-                    "Deposit balance must be positive"
-            }
-        }
-    }
+    // Event that is emitted when tokens are deposited into a Vault
+    pub event TokensDeposited(amount: UFix64, to: Address?)
 
-    // Balance
-    //
-    // Interface that specifies a public 'balance' field for the Vault
-    //
-    pub resource interface Balance {
-        pub var balance: UFix64
-    }
+    // Event that is emitted when tokens are minted
+    pub event TokensMinted(amount: UFix64)
+
+    // Event that is emitted when tokens are destroyed
+    pub event TokensBurned(amount: UFix64)
+
+    // Event that is emitted when a new minter resource is created
+    pub event MinterCreated(allowedAmount: UFix64)
+    
+    // Event that is emitted when a new burner resource is created
+    pub event BurnerCreated()
 
     // Vault
     //
     // Each user stores an instance of only the Vault in their storage
     // The functions in the Vault and governed by the pre and post conditions
-    // in the interfaces when they are called. 
+    // in FungibleToken when they are called.
     // The checks happen at runtime whenever a function is called.
-    pub resource Vault: Provider, Receiver, Balance {
+    //
+    // Resources can only be created in the context of the contract that they
+    // are defined in, so there is no way for a malicious user to create Vaults
+    // out of thin air. A special Minter resource needs to be defined to mint
+    // new tokens.
+    //
+    pub resource Vault: FungibleToken.Provider, FungibleToken.Receiver, FungibleToken.Balance {
 
         // Keeps track of the total account balance for this Vault
         pub var balance: UFix64
@@ -84,71 +63,144 @@ pub contract BrewCoin {
         // withdrawn tokens and returns the temporary Vault to 
         // the calling context to be deposited elsewhere
         //
-        pub fun withdraw(amount: UFix64): @Vault {
+        pub fun withdraw(amount: UFix64): @FungibleToken.Vault {
             self.balance = self.balance - amount
-            return <-create Vault(balance: UFix64(amount))
+            emit TokensWithdrawn(amount: amount, from: self.owner?.address)
+            return <-create Vault(balance: amount)
         }
 
         // deposit
         //
-        // Function that takes a Vault object as an argument
-        // and adds its balance to the balance of the owner's
-        // Vault.
+        // FFunction that takes a Vault object as an argument and adds
+        // its balance to the balance of the owners Vault.
         //
-        // It destroys the temporary Vault after the tokens
-        // have been deposited.
+        // It is allowed to destroy the sent Vault because the Vault
+        // was a temporary holder of the tokens. The Vault's balance has
+        // been consumed and therefore can be destroyed.
         //
-        pub fun deposit(from: @Vault) {
-            self.balance = self.balance + from.balance
-            destroy from
+        pub fun deposit(from: @FungibleToken.Vault) {
+            let vault <- from as! @BrewCoin.Vault
+            self.balance = self.balance + vault.balance
+            emit TokensDeposited(amount: vault.balance, to: self.owner?.address)
+            vault.balance = 0.0
+            destroy vault
+        }
+
+        destroy() {
+            BrewCoin.totalSupply = BrewCoin.totalSupply - self.balance
         }
     }
 
     // createEmptyVault
     //
     // Function that creates a new Vault with a balance of zero
-    // and returns it to the calling context. A user must call
-    // this function and store the returned Vault in their storage
-    // to enable deposits of this token type.
+    // and returns it to the calling context. A user must call this function
+    // and store the returned Vault in their storage in order to allow their
+    // account to be able to receive deposits of this token type.
     //
-    pub fun createEmptyVault(): @Vault {
-        return <-create Vault(balance: UFix64(0))
+    pub fun createEmptyVault(): @FungibleToken.Vault {
+        return <-create Vault(balance: 0.0)
     }
 
-    // VaultMinter
+    pub resource Administrator {
+        // createNewMinter
+        //
+        // Function that returns a new minter resource
+        //
+        pub fun createNewMinter(allowedAmount: UFix64): @Minter {
+            emit MinterCreated(allowedAmount: allowedAmount)
+            return <-create Minter(allowedAmount: allowedAmount)
+        }
+
+        // createNewBurner
+        //
+        // Function that returns a new burner resource
+        //
+        pub fun createNewBurner(): @Burner {
+            emit BurnerCreated()
+            return <-create Burner()
+        }
+    }
+
+    // Minter
     //
-    // Resource object that an admin can control to mint new tokens
-    pub resource VaultMinter {
+    // Resource object that token admin accounts can hold to mint new tokens
+    //
+    pub resource Minter {
+
+        // the amount of tokens that the minter is allowed to mint
+        pub var allowedAmount: UFix64
 
         // mintTokens
         //
-        // Function that mints new tokens and deposits into an
-        // account's Vault using their 'Receiver' reference.
-        // We say '&AnyResource{Receiver}' to say that the
-        // recipient can be any resource as long as it
-        // implements the Receiver interface
+        // Function that mints new tokens, adds them to the total supply,
+        // and returns them to the calling context
         //
-        pub fun mintTokens(amount: UFix64, recipient: &AnyResource{Receiver}) {
-            // Increase totalSupply count by 'amount'
-            BrewCoin.totalSupply = BrewCoin.totalSupply + UFix64(amount)
-            // Deposit the tokens in the recipient's Vault
-            recipient.deposit(from: <-create Vault(balance: UFix64(amount)))
+        pub fun mintTokens(amount: UFix64): @BrewCoin.Vault {
+            pre {
+                amount > UFix64(0): "Amount minted must be greater than zero"
+                amount <= self.allowedAmount: "Amount minted must be less than the allowed amount"
+            }
+            BrewCoin.totalSupply = BrewCoin.totalSupply + amount
+            self.allowedAmount = self.allowedAmount - amount
+            emit TokensMinted(amount: amount)
+            return <-create Vault(balance: amount)
+        }
+
+        init(allowedAmount: UFix64) {
+            self.allowedAmount = allowedAmount
+        }
+
+    }
+
+    // Burner
+    //
+    // Resource object that token admin accounts can hold to burn tokens
+    //
+    pub resource Burner {
+
+        // burnTokens
+        //
+        // Function that destroys a vault instance, effectively burning the tokens
+        //
+        // Note: the burned tokens are automatically subtracted from
+        // the totalSupply in the Vault destructor
+        //
+        pub fun burnTokens(from: @FungibleToken.Vault) {
+            let vault <- from as! @BrewCoin.Vault
+            let amount = vault.balance
+            destroy vault
+            emit TokensBurned(amount: amount)
         }
     }
 
     // The init function initializes the fields for the BrewCoin contract.
     init() {
-        self.totalSupply = UFix64(1000)
+        self.totalSupply = 1000.0
 
-        // Create the Vault with the initial balance and put it in storage
-        // account.save saves an object to the specified 'to' path.
-        // The path is a literal path that consist of a domain and identifier.
-        // The domain must be 'storage', 'public' or 'private'.
-        // The identifier can be any name.
+        // Create the Vault with the total supply of tokens and save it in storage
+        let vault <-create Vault(balance: self.totalSupply)
+        self.account.save(<-vault, to: /storage/BrewCoinVault)
+
+        // Create a public capability to the stored Vault that only exposes
+        // the 'deposit' method through the 'Receiver' interface
         //
-        self.account.save(<-create Vault(balance: UFix64(1000)), to: /storage/BrewCoinVault)
+        self.account.link<&{FungibleToken.Receiver}>(
+            /public/BrewCoinReceiver,
+            target: /storage/BrewCoinVault
+        )
 
-        // Create a new VaultMinter resource and store it in account storage
-        self.account.save(<-create VaultMinter(), to: /storage/BrewCoinMinter)
+        // Create a public capability to the stored Vault that only exposes
+        // the 'balance' field through the 'Balance' interface
+        self.account.link<&BrewCoin.Vault{FungibleToken.Balance}>(
+            /public/BrewCoinBalance,
+            target: /storage/BrewCoinVault
+        )
+
+        let admin <-create Administrator()
+        self.account.save(<-admin, to: /storage/BrewCoinAdmin)
+
+        // Emit an event that shows that the contract was initialized
+        emit TokensInitialized(initialSupply: self.totalSupply)
     }
 }

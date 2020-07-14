@@ -11,10 +11,10 @@ pub fun main() {
     // by getting their public capability and
     // borrowing a reference from the capability
     //
-    let acct1ReceiverRef = acct1.getCapability(/public/BrewCoinReceiver)!
+    let acct1ReceiverRef = acct1.getCapability(/public/BrewCoinBalance)!
                                 .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
 
-    let acct2ReceiverRef = acct2.getCapability(/public/BrewCoinReceiver)!
+    let acct2ReceiverRef = acct2.getCapability(/public/BrewCoinBalance)!
                                 .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
 
     // Read and log the balance fields

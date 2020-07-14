@@ -1,4 +1,5 @@
-import BrewCoin from 0x01
+import FungibleToken from 0x01
+import BrewCoin from 0x02
 
 // This script reads the vault balances of two accounts
 pub fun main() {
@@ -11,10 +12,10 @@ pub fun main() {
     // borrowing a reference from the capability
     //
     let acct1ReceiverRef = acct1.getCapability(/public/BrewCoinReceiver)!
-                                .borrow<&BrewCoin.Vault{BrewCoin.Balance}>()!
+                                .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
 
     let acct2ReceiverRef = acct2.getCapability(/public/BrewCoinReceiver)!
-                                .borrow<&BrewCoin.Vault{BrewCoin.Balance}>()!
+                                .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
 
     // Read and log the balance fields
     log("Account 1 Balance")

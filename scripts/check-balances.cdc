@@ -7,7 +7,8 @@ pub fun main() {
     // Create an array of addresses
     var accounts: [Address] = [
             Address(0x01cf0e2f2f715450), 
-            Address(0x179b6b1cb6755e31)
+            Address(0x179b6b1cb6755e31),
+            Address(0xf3fcd2c1a78f5eee)
         ]
 
     // Loop through each address and log the balance

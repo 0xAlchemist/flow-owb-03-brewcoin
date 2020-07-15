@@ -13,7 +13,9 @@ pub fun main() {
     // Loop through each address and log the balance
     for acct in accounts {
         let acct = getAccount(acct)
-        let vaultRef = acct.getCapability(/public/BrewCoinBalance)!.borrow<&BrewCoin.Vault{FungibleToken.Balance}>() ?? panic("Could not borrow Balance reference to the Vault")
+        let vaultRef = acct.getCapability(/public/BrewCoinBalance)!
+                        .borrow<&BrewCoin.Vault{FungibleToken.Balance}>() 
+                        ?? panic("Could not borrow Balance reference to the Vault")
             
         log(acct)
         log(vaultRef.balance)

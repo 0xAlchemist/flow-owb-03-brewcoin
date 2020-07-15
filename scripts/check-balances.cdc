@@ -1,26 +1,21 @@
-import FungibleToken from 0x01
-import BrewCoin from 0x02
+// This script reads the balance field of an account's BrewCoin Vault
 
-// This script reads the vault balances of two accounts
+import FungibleToken from 0xee82856bf20e2aa6
+import BrewCoin from 0x01cf0e2f2f715450
+
 pub fun main() {
-    // Get the accounts' public account objects
-    let acct1 = getAccount(0x01)
-    let acct2 = getAccount(0x02)
+    // Create an array of addresses
+    var accounts: [Address] = [
+            Address(0x01cf0e2f2f715450), 
+            Address(0x179b6b1cb6755e31)
+        ]
 
-    // Get references to the accounts' receivers
-    // by getting their public capability and
-    // borrowing a reference from the capability
-    //
-    let acct1ReceiverRef = acct1.getCapability(/public/BrewCoinBalance)!
-                                .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
-
-    let acct2ReceiverRef = acct2.getCapability(/public/BrewCoinBalance)!
-                                .borrow<&BrewCoin.Vault{FungibleToken.Balance}>()!
-
-    // Read and log the balance fields
-    log("Account 1 Balance")
-    log(acct1ReceiverRef.balance)
-    log(" ")
-    log("Account 2 Balance")
-    log(acct2ReceiverRef.balance)
+    // Loop through each address and log the balance
+    for acct in accounts {
+        let acct = getAccount(acct)
+        let vaultRef = acct.getCapability(/public/BrewCoinBalance)!.borrow<&BrewCoin.Vault{FungibleToken.Balance}>() ?? panic("Could not borrow Balance reference to the Vault")
+            
+        log(acct)
+        log(vaultRef.balance)
+    }
 }

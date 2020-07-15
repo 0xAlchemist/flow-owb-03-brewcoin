@@ -76,7 +76,7 @@ pub contract BrewCoin: FungibleToken {
 
         // deposit
         //
-        // FFunction that takes a Vault object as an argument and adds
+        // Function that takes a Vault object as an argument and adds
         // its balance to the balance of the owners Vault.
         //
         // It is allowed to destroy the sent Vault because the Vault

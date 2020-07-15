@@ -3,8 +3,13 @@
 
 // Flow Playground URL: https://play.onflow.org/b8fa9d7e-c6e0-4fca-9e5f-ed806ebd0106
 
+// Emulator Account Ref:
+// Account 1 - 0x01cf0e2f2f715450
+// Account 2 - 0x179b6b1cb6755e31
+// Account 3 - 0xf3fcd2c1a78f5eee
+
 // Import the Flow FungibleToken interface
-import FungibleToken from 0x01
+import FungibleToken from 0xee82856bf20e2aa6
 
 pub contract BrewCoin: FungibleToken {
 
@@ -204,3 +209,4 @@ pub contract BrewCoin: FungibleToken {
         emit TokensInitialized(initialSupply: self.totalSupply)
     }
 }
+ 
